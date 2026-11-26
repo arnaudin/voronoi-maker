@@ -1,5 +1,10 @@
 # Voronoi Maker: Figma Community listing
 
+**Status:** submitted Nov 25, 2026; in review with Figma. Plugin ID
+`1707624076362663172`; the listing will be at
+[figma.com/community/plugin/1707624076362663172](https://www.figma.com/community/plugin/1707624076362663172).
+Playground: [Voronoi Maker playground](https://www.figma.com/design/skSB3nQ1PQLBnSYQrFB37O).
+
 Paste-ready copy for the Publish plugin modal (Figma desktop → Plugins → Manage plugins →
 ⋯ next to Voronoi Maker → Publish). Images are in this folder; regenerate them with
 `./render.sh` after `npm run build`.
