@@ -22,7 +22,7 @@ Generate editable vector Voronoi patterns in Figma
 
 Alternates:
 - `Create Voronoi patterns where every cell is an editable vector`
-- `Organic cell patterns, mosaics, and coloring pages as Figma vectors`
+- `Organic cell patterns, mosaics, and geometric textures as Figma vectors`
 
 **Category:** Design tools
 
@@ -35,7 +35,7 @@ Voronoi Maker generates Voronoi patterns as editable vectors inside Figma. Every
 STYLES
 • Colored: 6 built-in themes. Choose Balanced (keeps neighboring cells different colors), Random, or By cell size.
 • Gradient: cells shaded along a theme gradient at any angle.
-• Outline: black outlines on white for coloring pages, laser cutting, or print.
+• Outline: black outlines on white for line art and custom fills.
 
 CONTROLS
 • Density: 12 to 800 cells.
@@ -51,7 +51,7 @@ EDITABLE LATER
 Select any frame Voronoi Maker created and click "Edit Voronoi pattern" in the properties panel to reopen the plugin with that frame's settings. When you click "Update selected", the frame regenerates in place and keeps any cells you recolored by hand. Restyling keeps them on the exact same cells; changing the size, density, pattern, gap, or seed maps them onto the nearest new cells.
 
 USES
-Backgrounds and textures, mosaics and tile art, packaging, posters, stylized maps, and printable coloring pages.
+Backgrounds and textures, mosaics, packaging, posters, and stylized maps.
 
 PRIVACY
 Runs entirely inside your Figma file with no network access, accounts, or analytics.
