@@ -1,0 +1,242 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Voronoi Maker — dev gallery</title>
+<style>
+  body { font: 13px/1.5 -apple-system, Inter, sans-serif; margin: 24px; background: #fafafa; color: #222; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  #checks { margin: 12px 0 20px; padding: 10px 14px; border-radius: 8px; white-space: pre-line; }
+  #checks.pass { background: #e6f6ec; color: #1a7f3c; }
+  #checks.fail { background: #fdecea; color: #b3261e; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .tile { background: #fff; border: 1px solid #e4e4e4; border-radius: 8px; overflow: hidden; }
+  .tile svg { width: 100%; height: auto; display: block; }
+  .cap { padding: 6px 10px; color: #666; font-size: 11px; border-top: 1px solid #eee; }
+</style>
+</head>
+<body>
+  <h1>Voronoi Maker — dev gallery</h1>
+  <div id="checks">running checks…</div>
+  <div id="grid"></div>
+
+<script src="../dist/core.iife.js"></script>
+<script>
+  const {
+    generate, DEFAULT_PARAMS, PALETTES, layerCells, layerFillMap, matchLayers, matchByPosition,
+    sameGeometry, insetPolygon,
+  } = VoronoiCore;
+  const styles = ['color', 'gradient', 'bw'];
+  const patterns = ['scatter', 'clusters', 'grid', 'orbits'];
+  const strategies = ['balanced', 'random', 'bySize'];
+
+  const failures = [];
+  let checks = 0;
+  const check = (name, ok) => { checks++; if (!ok) failures.push(name); };
+
+  // The last four tiles add nested rings: one per style, plus rounded pebbles.
+  const RING_TILES = [
+    { style: 'color', ringSpacing: 7, ringShading: 'fade', density: 24, relax: 4, gap: 0, rounding: 0 },
+    { style: 'gradient', ringSpacing: 6, ringShading: 'alternate', density: 30, relax: 3, gap: 4, rounding: 4 },
+    { style: 'bw', ringSpacing: 8, density: 20, relax: 6, gap: 0, rounding: 0 },
+    { style: 'color', ringSpacing: 7, ringShading: 'alternate', density: 26, relax: 5, gap: 10, rounding: 14 },
+  ];
+  const TILES = 12 + RING_TILES.length;
+  const grid = document.getElementById('grid');
+  let totalMs = 0;
+  for (let i = 0; i < TILES; i++) {
+    const params = {
+      ...DEFAULT_PARAMS,
+      width: 400,
+      height: 300,
+      density: 90,
+      seed: 1000 + i * 77,
+      style: styles[i % 3],
+      pattern: patterns[i % 4],
+      themeId: PALETTES[i % PALETTES.length].id,
+      colorStrategy: strategies[i % 3],
+      relax: i % 4,
+      gap: [0, 3, 6][i % 3],
+      rounding: [0, 6, 14][i % 3],
+      ...RING_TILES[i - 12],
+    };
+    const t0 = performance.now();
+    const a = generate(params);
+    totalMs += performance.now() - t0;
+    const b = generate(params);
+
+    const tag = `seed ${params.seed} (${params.style}/${params.pattern})`;
+    check(`determinism ${tag}`, a.svg === b.svg);
+    check(`no NaN ${tag}`, !a.svg.includes('NaN'));
+    check(
+      `closed paths ${tag}`,
+      [...a.svg.matchAll(/ d="([^"]+)"/g)].every((m) => m[1].trim().endsWith('Z')),
+    );
+    check(`cell count ${tag} (${a.cellCount})`, a.cellCount >= params.density * 0.5);
+    check(`ring layers ${tag} (${a.ringCount})`, params.ringSpacing ? a.ringCount > 0 : a.ringCount === 0);
+
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.innerHTML =
+      a.svg.replace(/width="[\d.]+" height="[\d.]+"/, '') +
+      `<div class="cap">${a.cellCount} cells · ${tag} · ${params.colorStrategy}` +
+      ` · relax ${params.relax} · gap ${params.gap} · round ${params.rounding}` +
+      (params.ringSpacing ? ` · rings ${params.ringSpacing} (${a.ringCount})` : '') + '</div>';
+    grid.appendChild(tile);
+  }
+
+  // Update in place: manual recolors must follow their cell, not its number
+  // ("Cell 042" is whichever cell comes 42nd, so geometry changes renumber).
+  for (const seed of [1000, 1077, 1154, 2718]) {
+    const from = { ...DEFAULT_PARAMS, width: 400, height: 300, density: 90, relax: 0, gap: 0, seed };
+    const cells = layerCells(from);
+    const names = [...cells.keys()];
+    const identity = (m) => m.size === names.length && names.every((n) => m.get(n) === n);
+    const restyled = {
+      ...from, style: 'gradient', themeId: 'lagoon', colorStrategy: 'random',
+      gradientAngle: 120, strokeWidth: 5, rounding: 12,
+    };
+    check(
+      `style-only update keeps every cell on its own layer, seed ${seed}`,
+      sameGeometry(from, restyled) && identity(matchLayers(from, restyled, names)),
+    );
+    check(
+      `positional match is the identity on an unchanged layout, seed ${seed}`,
+      identity(matchByPosition(from, restyled, names)),
+    );
+
+    // A gap wide enough to empty some cells renumbers the rest; every
+    // surviving cell's override must land on that same cell (same site).
+    const gapped = { ...from, gap: 14 };
+    const after = layerCells(gapped);
+    const nameOfSite = new Map([...after].map(([n, c]) => [c.index, n]));
+    const survivors = names.filter((n) => nameOfSite.has(cells.get(n).index));
+    const gm = matchLayers(from, gapped, [...names, 'Background']);
+    check(
+      `gap update renumbers cells, seed ${seed} (${names.length} → ${after.size})`,
+      survivors.some((n) => nameOfSite.get(cells.get(n).index) !== n),
+    );
+    check(
+      `gap update keeps overrides on their cells, seed ${seed}`,
+      survivors.every((n) => gm.get(n) === nameOfSite.get(cells.get(n).index)) &&
+        gm.get('Background') === 'Background',
+    );
+
+    // Doubling the frame scales the layout; each override follows its cell.
+    const bigger = { ...from, width: 800, height: 600 };
+    const big = layerCells(bigger);
+    const bm = matchLayers(from, bigger, names);
+    check(
+      `resize ×2 keeps overrides on their cells, seed ${seed}`,
+      names.every((n) => bm.has(n) && big.get(bm.get(n)).index === cells.get(n).index),
+    );
+
+    // Halving density merges cells: no new cell may be claimed twice.
+    const halved = { ...from, density: 45 };
+    const hm = matchLayers(from, halved, names);
+    check(
+      `merged cells claimed at most once, seed ${seed} (${hm.size} of ${names.length} placed)`,
+      new Set(hm.values()).size === hm.size && hm.size <= layerCells(halved).size && hm.size > 0,
+    );
+  }
+
+  // Rings: each band is exactly one spacing wide (every ring vertex sits at least
+  // one spacing inside its parent), each center fits a circle two spacings wide,
+  // and no cell had room for one more ring.
+  const segDist = (p, a, b) => {
+    const ex = b.x - a.x, ey = b.y - a.y;
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / (ex * ex + ey * ey || 1)));
+    return Math.hypot(p.x - a.x - t * ex, p.y - a.y - t * ey);
+  };
+  const polyDist = (p, poly) => Math.min(...poly.map((a, i) => segDist(p, a, poly[(i + 1) % poly.length])));
+  for (const [i, extra] of [
+    { pattern: 'scatter', relax: 0, gap: 0, ringSpacing: 6 },
+    { pattern: 'grid', relax: 2, gap: 8, ringSpacing: 5 },
+    { pattern: 'clusters', relax: 1, gap: 3, ringSpacing: 8 },
+  ].entries()) {
+    const params = { ...DEFAULT_PARAMS, width: 400, height: 300, density: 40, seed: 2000 + i, ...extra };
+    const s = params.ringSpacing;
+    const cells = [...layerCells(params).values()];
+    const chains = cells.map((c) => [c.poly, ...c.rings]);
+    check(
+      `ring bands one spacing wide, ${params.pattern}`,
+      cells.some((c) => c.rings.length > 1) &&
+        chains.every((ch) => ch.every((ring, k) => k === 0 || ring.every((v) => polyDist(v, ch[k - 1]) >= s - 1e-6))),
+    );
+    check(
+      `ring centers two spacings wide, ${params.pattern}`,
+      cells.every((c) => !c.rings.length || insetPolygon(c.rings[c.rings.length - 1], s).length > 0),
+    );
+    check(
+      `no room for another ring, ${params.pattern}`,
+      cells.every((c) => {
+        const next = insetPolygon(c.poly, (c.rings.length + 1) * s);
+        return !next.length || !insetPolygon(next, s).length;
+      }),
+    );
+  }
+
+  // Ring shading: Fade lightens every step inward, Alternate swaps between the
+  // cell color and a tint, and Outline rings stay white.
+  const lum = (hex) => {
+    const n = parseInt(hex.slice(1), 16);
+    return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+  };
+  const shaded = { ...DEFAULT_PARAMS, width: 400, height: 300, density: 20, relax: 5, gap: 0, ringSpacing: 7, seed: 3100 };
+  const ringChains = (p) => {
+    const fills = layerFillMap(p);
+    return [...layerCells(p)].filter(([, c]) => c.rings.length > 1)
+      .map(([n, c]) => [n, ...c.rings.map((_, k) => `${n} Ring ${k + 1}`)].map((l) => fills.get(l)));
+  };
+  const fade = ringChains({ ...shaded, ringShading: 'fade' });
+  const alt = ringChains({ ...shaded, ringShading: 'alternate' });
+  check(`fade shading lightens inward (${fade.length} cells)`, fade.length > 0 && fade.every((ch) => ch.every((f, k) => k === 0 || lum(f) > lum(ch[k - 1]))));
+  check('alternate shading swaps', alt.every((ch) => ch.every((f, k) => (k % 2 ? lum(f) > lum(ch[0]) : f === ch[0]))));
+  check('Outline rings stay white', ringChains({ ...shaded, style: 'bw' }).every((ch) => ch.every((f) => f === '#ffffff')));
+
+  // Update in place with rings: restyling keeps every ring layer; a new ring
+  // spacing keeps each ring number that still exists; a gap that renumbers cells
+  // carries each ring to the same ring of the same cell (same site).
+  for (const seed of [11, 12, 13]) {
+    const from = { ...DEFAULT_PARAMS, width: 400, height: 300, density: 70, relax: 0, gap: 0, ringSpacing: 7, seed };
+    const names = [...layerFillMap(from).keys()];
+    const restyled = { ...from, style: 'bw', rounding: 9, ringShading: 'alternate' };
+    const rm = matchLayers(from, restyled, names);
+    check(`rings: restyle keeps every layer, seed ${seed}`, rm.size === names.length && names.every((n) => rm.get(n) === n));
+
+    const respaced = { ...from, ringSpacing: 5 };
+    const respacedLayers = new Set(layerFillMap(respaced).keys());
+    const sm = matchLayers(from, respaced, names);
+    check(
+      `rings: new spacing keeps ring numbers, seed ${seed}`,
+      names.every((n) => (respacedLayers.has(n) ? sm.get(n) === n : !sm.has(n))),
+    );
+
+    const before = layerCells(from);
+    const gapped = { ...from, gap: 16 };
+    const after = layerCells(gapped);
+    const nameOfSite = new Map([...after].map(([n, c]) => [c.index, n]));
+    const ringOnes = [...before].filter(([, c]) => c.rings.length).map(([n]) => `${n} Ring 1`);
+    const gm = matchLayers(from, gapped, ringOnes);
+    let renumbered = 0;
+    const follows = ringOnes.every((layer) => {
+      const cell = layer.replace(/ Ring 1$/, '');
+      const target = nameOfSite.get(before.get(cell).index);
+      if (target && target !== cell) renumbered++;
+      const expected = target && after.get(target).rings.length ? `${target} Ring 1` : undefined;
+      return gm.get(layer) === expected;
+    });
+    check(`rings: renumbering gap keeps rings on their cell, seed ${seed} (${renumbered} renumbered)`, follows && renumbered > 0);
+  }
+
+  const el = document.getElementById('checks');
+  if (failures.length === 0) {
+    el.className = 'pass';
+    el.textContent = `✅ all ${checks} checks passed — ${TILES} tiles, ${totalMs.toFixed(0)}ms total generation`;
+  } else {
+    el.className = 'fail';
+    el.textContent = '❌ failures:\n' + failures.join('\n');
+  }
+</script>
+</body>
+</html>

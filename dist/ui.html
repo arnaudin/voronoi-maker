@@ -1,0 +1,876 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: var(--figma-color-bg, #ffffff);
+    --fg: var(--figma-color-text, #1e1e1e);
+    --muted: var(--figma-color-text-secondary, #777);
+    --border: var(--figma-color-border, #e0e0e0);
+    --accent: var(--figma-color-bg-brand, #0d99ff);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font: 11px/1.4 Inter, 'Helvetica Neue', sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    padding: 12px 12px 0;
+    user-select: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #preview {
+    width: 100%;
+    max-height: 300px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    margin: 0 auto 10px;
+  }
+  #preview svg { width: 100%; height: 100%; display: block; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .row label { flex: 0 0 78px; color: var(--muted); }
+  .row input[type='range'] { flex: 1; }
+  .row select, .row input[type='number'] {
+    flex: 1; padding: 3px 6px; border: 1px solid var(--border);
+    border-radius: 4px; background: var(--bg); color: var(--fg); font: inherit;
+    min-width: 0;
+  }
+  .val { flex: 0 0 28px; text-align: right; color: var(--muted); }
+  .seg { display: flex; flex: 1; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .seg button {
+    flex: 1; padding: 4px 0; border: 0; background: transparent;
+    color: var(--fg); font: inherit; cursor: pointer;
+  }
+  .seg button.on { background: var(--accent); color: #fff; }
+  #themes { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+  .swatch {
+    width: 34px; height: 22px; border-radius: 4px; cursor: pointer;
+    border: 2px solid transparent; display: flex; overflow: hidden;
+  }
+  .swatch.on { border-color: var(--accent); }
+  .swatch i { flex: 1; }
+  #footer {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 10px 0 12px;
+  }
+  .actions { display: flex; gap: 8px; }
+  .actions button {
+    flex: 1; padding: 8px 0; border-radius: 6px; font: inherit; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+  }
+  .actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #meta { color: var(--muted); margin-top: 6px; text-align: center; }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+  <div id="preview"></div>
+
+  <div class="row"><label>Style</label>
+    <div class="seg" id="style">
+      <button data-v="color" class="on">Colored</button>
+      <button data-v="gradient">Gradient</button>
+      <button data-v="bw">Outline</button>
+    </div>
+  </div>
+  <div class="row" id="themeRow"><label>Theme</label><div id="themes"></div></div>
+  <div class="row" id="strategyRow"><label>Coloring</label>
+    <select id="colorStrategy">
+      <option value="balanced">Balanced (avoids matching neighbors)</option>
+      <option value="random">Random</option>
+      <option value="bySize">By cell size</option>
+    </select>
+  </div>
+  <div class="row hide" id="angleRow"><label>Angle</label><input id="gradientAngle" type="range" min="0" max="360" step="5" value="35" /><span class="val" id="gradientAngleVal">35</span></div>
+  <div class="row"><label>Density</label><input id="density" type="range" min="12" max="800" step="1" value="140" /><span class="val" id="densityVal">140</span></div>
+  <div class="row"><label>Uniformity</label><input id="relax" type="range" min="0" max="10" step="1" value="2" /><span class="val" id="relaxVal">2</span></div>
+  <div class="row"><label>Pattern</label>
+    <select id="pattern">
+      <option value="scatter">Scatter</option>
+      <option value="clusters">Clusters</option>
+      <option value="grid">Grid</option>
+      <option value="orbits">Orbits</option>
+    </select>
+  </div>
+  <div class="row"><label>Gap</label><input id="gap" type="range" min="0" max="24" step="0.5" value="4" /><span class="val" id="gapVal">4</span></div>
+  <div class="row"><label>Rounding</label><input id="rounding" type="range" min="0" max="40" step="1" value="0" /><span class="val" id="roundingVal">0</span></div>
+  <div class="row"><label title="Nested outlines inside every cell, this many px apart">Rings</label><input id="ringSpacing" type="range" min="0" max="60" step="1" value="0" /><span class="val" id="ringSpacingVal">Off</span></div>
+  <div class="row hide" id="ringShadingRow"><label>Ring shading</label>
+    <div class="seg" id="ringShading">
+      <button data-v="fade" class="on">Fade to light</button>
+      <button data-v="alternate">Alternate</button>
+    </div>
+  </div>
+  <div class="row"><label>Stroke</label><input id="strokeWidth" type="range" min="0" max="8" step="0.5" value="2" /><span class="val" id="strokeWidthVal">2</span></div>
+  <div class="row"><label>Size (px)</label>
+    <input id="width" type="number" min="100" max="4000" step="50" value="800" />
+    <span style="color: var(--muted)">×</span>
+    <input id="height" type="number" min="100" max="4000" step="50" value="600" />
+  </div>
+  <div class="row"><label>Seed</label><input id="seed" type="number" value="12345" /></div>
+
+  <div id="footer">
+    <div class="actions">
+      <button id="shuffle">🎲 Shuffle</button>
+      <button id="insertNew" class="hide" title="Add a new pattern instead of updating the selected one">Insert new</button>
+      <button id="insert" class="primary">Insert into Figma</button>
+    </div>
+    <div id="meta"></div>
+  </div>
+
+<script>"use strict";
+(() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __propIsEnum = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    if (__getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(b)) {
+        if (__propIsEnum.call(b, prop))
+          __defNormalProp(a, prop, b[prop]);
+      }
+    return a;
+  };
+
+  // src/core/rng.ts
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a |= 0;
+      a = a + 1831565813 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function pick(rng, arr) {
+    return arr[Math.floor(rng() * arr.length)];
+  }
+  function range(rng, min, max) {
+    return min + rng() * (max - min);
+  }
+  function gaussian(rng) {
+    const u = Math.max(rng(), 1e-9);
+    const v = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // src/core/colors.ts
+  function assignFills(cells, style, strategy, palette, gradientAngle, rng) {
+    if (style === "bw") return cells.map(() => "#ffffff");
+    if (style === "gradient") return gradientFills(cells, palette, gradientAngle);
+    if (strategy === "random") return cells.map(() => pick(rng, palette.colors));
+    if (strategy === "bySize") return sizeFills(cells, palette);
+    return balancedFills(cells, palette);
+  }
+  function balancedFills(cells, palette) {
+    const colors = palette.colors;
+    const idx = new Array(cells.length).fill(-1);
+    const counts = new Array(colors.length).fill(0);
+    cells.forEach((c, i) => {
+      const banned = /* @__PURE__ */ new Set();
+      for (const j of c.neighbors) if (j < i && idx[j] >= 0) banned.add(idx[j]);
+      let best = -1;
+      for (let k = 0; k < colors.length; k++) {
+        if (banned.has(k)) continue;
+        if (best < 0 || counts[k] < counts[best]) best = k;
+      }
+      if (best < 0) {
+        best = 0;
+        for (let k = 1; k < colors.length; k++) if (counts[k] < counts[best]) best = k;
+      }
+      idx[i] = best;
+      counts[best]++;
+    });
+    return idx.map((k) => colors[k]);
+  }
+  function sizeFills(cells, palette) {
+    const order = cells.map((_, i) => i).sort((a, b) => cells[a].area - cells[b].area);
+    const fills = new Array(cells.length).fill(palette.colors[0]);
+    order.forEach((cellIdx, rank) => {
+      const k = Math.min(
+        palette.colors.length - 1,
+        Math.floor(rank / cells.length * palette.colors.length)
+      );
+      fills[cellIdx] = palette.colors[k];
+    });
+    return fills;
+  }
+  function gradientFills(cells, palette, angleDeg) {
+    const rad = angleDeg * Math.PI / 180;
+    const ux = Math.cos(rad);
+    const uy = Math.sin(rad);
+    let min = Infinity;
+    let max = -Infinity;
+    for (const c of cells) {
+      const t = c.centroid.x * ux + c.centroid.y * uy;
+      if (t < min) min = t;
+      if (t > max) max = t;
+    }
+    const span = max - min || 1;
+    return cells.map((c) => {
+      const t = (c.centroid.x * ux + c.centroid.y * uy - min) / span;
+      return sampleStops(palette.colors, t);
+    });
+  }
+  function ringFill(base, k, count, shading) {
+    const t = shading === "alternate" ? k % 2 === 1 ? 0.45 : 0 : 0.72 * k / count;
+    return hexLerp(base, "#ffffff", t);
+  }
+  function sampleStops(stops, t) {
+    const clamped = Math.min(1, Math.max(0, t));
+    const seg = clamped * (stops.length - 1);
+    const i = Math.min(stops.length - 2, Math.floor(seg));
+    return hexLerp(stops[i], stops[i + 1], seg - i);
+  }
+  function hexLerp(a, b, t) {
+    const na = parseInt(a.slice(1), 16);
+    const nb = parseInt(b.slice(1), 16);
+    const mix = (sa, sb) => Math.round(sa + (sb - sa) * t);
+    const to = (v) => v.toString(16).padStart(2, "0");
+    return "#" + to(mix(na >> 16 & 255, nb >> 16 & 255)) + to(mix(na >> 8 & 255, nb >> 8 & 255)) + to(mix(na & 255, nb & 255));
+  }
+
+  // src/core/palettes.ts
+  var PALETTES = [
+    {
+      id: "terrazzo",
+      name: "Terrazzo",
+      bg: "#f5efe4",
+      ink: "#33302b",
+      colors: ["#d96f4e", "#e8b64c", "#7ea172", "#41576e", "#c9b7a0", "#8c5b45"]
+    },
+    {
+      id: "lagoon",
+      name: "Lagoon",
+      bg: "#0d3b4f",
+      ink: "#082733",
+      colors: ["#0f6f7a", "#2fa5a0", "#7fd0c4", "#bfe8dd", "#eaf6f0", "#17495c"]
+    },
+    {
+      id: "citrus",
+      name: "Citrus",
+      bg: "#fff8e8",
+      ink: "#4c4433",
+      colors: ["#ef476f", "#f78c6b", "#ffd166", "#83d483", "#06d6a0", "#118ab2"]
+    },
+    {
+      id: "ultraviolet",
+      name: "Ultraviolet",
+      bg: "#181433",
+      ink: "#0e0b22",
+      colors: ["#5e60ce", "#6930c3", "#7400b8", "#5390d9", "#48bfe3", "#80ffdb"]
+    },
+    {
+      id: "terra",
+      name: "Terra",
+      bg: "#efe6d8",
+      ink: "#3f3128",
+      colors: ["#7f4f24", "#936639", "#a68a64", "#b6ad90", "#656d4a", "#414833"]
+    },
+    {
+      id: "sorbet",
+      name: "Sorbet",
+      bg: "#fdf3f6",
+      ink: "#907a86",
+      colors: ["#ffadad", "#ffd6a5", "#fdffb6", "#caffbf", "#9bf6ff", "#bdb2ff"]
+    }
+  ];
+  function getPalette(id) {
+    var _a;
+    return (_a = PALETTES.find((p) => p.id === id)) != null ? _a : PALETTES[0];
+  }
+
+  // src/core/points.ts
+  var PATTERNS = [
+    { id: "scatter", name: "Scatter" },
+    { id: "clusters", name: "Clusters" },
+    { id: "grid", name: "Grid" },
+    { id: "orbits", name: "Orbits" }
+  ];
+  var clampIn = (v, hi) => Math.min(hi - 1, Math.max(1, v));
+  function generateSites(rng, count, w, h, pattern) {
+    let pts;
+    if (pattern === "clusters") pts = clusters(rng, count, w, h);
+    else if (pattern === "grid") pts = hexGrid(rng, count, w, h);
+    else if (pattern === "orbits") pts = orbits(rng, count, w, h);
+    else pts = scatter(rng, count, w, h);
+    return dedupe(pts);
+  }
+  function scatter(rng, count, w, h) {
+    const pts = [];
+    for (let i = 0; i < count; i++) pts.push({ x: range(rng, 1, w - 1), y: range(rng, 1, h - 1) });
+    return pts;
+  }
+  function clusters(rng, count, w, h) {
+    const k = Math.max(3, Math.round(Math.sqrt(count) * 0.8));
+    const centers = [];
+    for (let i = 0; i < k; i++) {
+      centers.push({ x: range(rng, w * 0.12, w * 0.88), y: range(rng, h * 0.12, h * 0.88) });
+    }
+    const sigma = Math.min(w, h) / Math.sqrt(k) * 0.42;
+    const pts = [];
+    const dusting = Math.round(count * 0.15);
+    for (let i = 0; i < dusting; i++) pts.push({ x: range(rng, 1, w - 1), y: range(rng, 1, h - 1) });
+    for (let i = dusting; i < count; i++) {
+      const c = pick(rng, centers);
+      pts.push({
+        x: clampIn(c.x + gaussian(rng) * sigma, w),
+        y: clampIn(c.y + gaussian(rng) * sigma, h)
+      });
+    }
+    return pts;
+  }
+  function hexGrid(rng, count, w, h) {
+    const s = Math.sqrt(w * h / count * (2 / Math.sqrt(3)));
+    const rowH = s * Math.sqrt(3) / 2;
+    const jitter = s * 0.18;
+    const pts = [];
+    let row = 0;
+    for (let y = rowH / 2; y < h; y += rowH, row++) {
+      for (let x = row % 2 ? s : s / 2; x < w; x += s) {
+        pts.push({
+          x: clampIn(x + range(rng, -jitter, jitter), w),
+          y: clampIn(y + range(rng, -jitter, jitter), h)
+        });
+      }
+    }
+    return pts;
+  }
+  function orbits(rng, count, w, h) {
+    const cx = w / 2;
+    const cy = h / 2;
+    const maxR = Math.hypot(w, h) / 2;
+    const rings = Math.max(3, Math.round(Math.sqrt(count) / 1.6));
+    const ringW = maxR / rings;
+    const radii = [];
+    let totalW = 0;
+    for (let j = 0; j < rings; j++) {
+      radii.push((j + 0.5) * ringW);
+      totalW += radii[j];
+    }
+    const pts = [{ x: cx, y: cy }];
+    for (let j = 0; j < rings; j++) {
+      const cnt = Math.max(3, Math.round((count - 1) * radii[j] / totalW));
+      const phase = range(rng, 0, 2 * Math.PI);
+      for (let c = 0; c < cnt; c++) {
+        const angle = phase + (c + range(rng, -0.3, 0.3)) / cnt * 2 * Math.PI;
+        const r = radii[j] + range(rng, -0.3, 0.3) * ringW;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        if (x > 1 && x < w - 1 && y > 1 && y < h - 1) pts.push({ x, y });
+      }
+    }
+    return pts;
+  }
+  function dedupe(pts) {
+    const seen = /* @__PURE__ */ new Set();
+    const out = [];
+    for (const p of pts) {
+      const key = `${Math.round(p.x * 2)}:${Math.round(p.y * 2)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(p);
+    }
+    return out;
+  }
+
+  // src/core/voronoi.ts
+  function clipHalfPlane(poly, ax, ay, nx, ny) {
+    const out = [];
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i];
+      const q = poly[(i + 1) % poly.length];
+      const dp = (p.x - ax) * nx + (p.y - ay) * ny;
+      const dq = (q.x - ax) * nx + (q.y - ay) * ny;
+      if (dp <= 0) out.push(p);
+      if (dp < 0 && dq > 0 || dp > 0 && dq < 0) {
+        const t = dp / (dp - dq);
+        out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+      }
+    }
+    return out;
+  }
+  function maxDist(s, poly) {
+    let m = 0;
+    for (const p of poly) {
+      const d = Math.hypot(p.x - s.x, p.y - s.y);
+      if (d > m) m = d;
+    }
+    return m;
+  }
+  function computeCells(sites, w, h, gap) {
+    const n = sites.length;
+    const g = gap / 2;
+    const cell = Math.max(4, Math.sqrt(w * h / Math.max(1, n)));
+    const cols = Math.max(1, Math.ceil(w / cell));
+    const rows = Math.max(1, Math.ceil(h / cell));
+    const buckets = Array.from({ length: cols * rows }, () => []);
+    const gx = (p) => Math.min(cols - 1, Math.max(0, Math.floor(p.x / cell)));
+    const gy = (p) => Math.min(rows - 1, Math.max(0, Math.floor(p.y / cell)));
+    sites.forEach((p, i) => buckets[gy(p) * cols + gx(p)].push(i));
+    const rect = [
+      { x: g, y: g },
+      { x: w - g, y: g },
+      { x: w - g, y: h - g },
+      { x: g, y: h - g }
+    ];
+    return sites.map((s, i) => {
+      let poly = rect;
+      const neighbors = [];
+      let radius = maxDist(s, poly);
+      const cgx = gx(s);
+      const cgy = gy(s);
+      const maxRing = Math.max(cols, rows);
+      for (let ring = 0; ring <= maxRing && poly.length >= 3; ring++) {
+        if (ring >= 2 && (ring - 1) * cell / 2 - g > radius) break;
+        const cand = [];
+        const x0 = cgx - ring;
+        const x1 = cgx + ring;
+        const y0 = cgy - ring;
+        const y1 = cgy + ring;
+        for (let by = Math.max(0, y0); by <= Math.min(rows - 1, y1); by++) {
+          for (let bx = Math.max(0, x0); bx <= Math.min(cols - 1, x1); bx++) {
+            if (ring > 0 && bx !== x0 && bx !== x1 && by !== y0 && by !== y1) continue;
+            for (const j of buckets[by * cols + bx]) {
+              if (j === i) continue;
+              const dx = sites[j].x - s.x;
+              const dy = sites[j].y - s.y;
+              cand.push({ j, d2: dx * dx + dy * dy });
+            }
+          }
+        }
+        cand.sort((a, b) => a.d2 - b.d2);
+        for (const { j, d2 } of cand) {
+          const d = Math.sqrt(d2);
+          if (d / 2 - g > radius) break;
+          if (d < 1e-9) continue;
+          const ux = (sites[j].x - s.x) / d;
+          const uy = (sites[j].y - s.y) / d;
+          const mx = s.x + ux * (d / 2 - g);
+          const my = s.y + uy * (d / 2 - g);
+          let outside = false;
+          for (const p of poly) {
+            if ((p.x - mx) * ux + (p.y - my) * uy > 1e-9) {
+              outside = true;
+              break;
+            }
+          }
+          if (!outside) continue;
+          poly = clipHalfPlane(poly, mx, my, ux, uy);
+          neighbors.push(j);
+          if (poly.length < 3) {
+            poly = [];
+            break;
+          }
+          radius = maxDist(s, poly);
+        }
+      }
+      let a2 = 0;
+      let cx = 0;
+      let cy = 0;
+      for (let k = 0; k < poly.length; k++) {
+        const p = poly[k];
+        const q = poly[(k + 1) % poly.length];
+        const cross = p.x * q.y - q.x * p.y;
+        a2 += cross;
+        cx += (p.x + q.x) * cross;
+        cy += (p.y + q.y) * cross;
+      }
+      const area = Math.abs(a2) / 2;
+      const centroid = poly.length >= 3 && area > 1e-6 ? { x: cx / (3 * a2), y: cy / (3 * a2) } : { x: s.x, y: s.y };
+      return { site: s, poly, neighbors, area, centroid };
+    });
+  }
+  function relaxSites(sites, w, h) {
+    return computeCells(sites, w, h, 0).map((c) => c.centroid);
+  }
+  function insetPolygon(poly, d) {
+    const n = poly.length;
+    if (n < 3) return [];
+    let mx = 0;
+    let my = 0;
+    for (const p of poly) {
+      mx += p.x / n;
+      my += p.y / n;
+    }
+    let out = poly;
+    for (let i = 0; i < n && out.length >= 3; i++) {
+      const a = poly[i];
+      const b = poly[(i + 1) % n];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len < 1e-9) continue;
+      let nx = (b.y - a.y) / len;
+      let ny = -(b.x - a.x) / len;
+      if ((mx - a.x) * nx + (my - a.y) * ny > 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+      out = clipHalfPlane(out, a.x - nx * d, a.y - ny * d, nx, ny);
+    }
+    if (out.length < 3) return [];
+    let a2 = 0;
+    for (let k = 0; k < out.length; k++) {
+      const p = out[k];
+      const q = out[(k + 1) % out.length];
+      a2 += p.x * q.y - q.x * p.y;
+    }
+    return Math.abs(a2) > 2e-6 ? out : [];
+  }
+  var MAX_RINGS = 40;
+  function cellRings(poly, spacing) {
+    const rings = [];
+    if (spacing <= 0) return rings;
+    while (rings.length < MAX_RINGS) {
+      const ring = insetPolygon(poly, (rings.length + 1) * spacing);
+      if (!ring.length || !insetPolygon(ring, spacing).length) break;
+      rings.push(ring);
+    }
+    return rings;
+  }
+  function polyPath(poly, radius) {
+    const pts = [];
+    for (const p of poly) {
+      const prev = pts[pts.length - 1];
+      if (!prev || Math.hypot(p.x - prev.x, p.y - prev.y) > 0.02) pts.push(p);
+    }
+    while (pts.length > 1 && Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y) <= 0.02) {
+      pts.pop();
+    }
+    if (pts.length < 3) return "";
+    const r2 = (v) => Math.round(v * 100) / 100;
+    if (radius <= 0.05) {
+      return pts.map((p, i) => `${i === 0 ? "M" : "L"} ${r2(p.x)} ${r2(p.y)}`).join(" ") + " Z";
+    }
+    const parts = [];
+    const n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const prev = pts[(i + n - 1) % n];
+      const v = pts[i];
+      const next = pts[(i + 1) % n];
+      const inLen = Math.hypot(v.x - prev.x, v.y - prev.y);
+      const outLen = Math.hypot(next.x - v.x, next.y - v.y);
+      const r = Math.max(0, Math.min(radius, inLen / 2 - 0.01, outLen / 2 - 0.01));
+      const pin = { x: v.x + (prev.x - v.x) * r / inLen, y: v.y + (prev.y - v.y) * r / inLen };
+      const pout = { x: v.x + (next.x - v.x) * r / outLen, y: v.y + (next.y - v.y) * r / outLen };
+      parts.push(
+        `${i === 0 ? "M" : "L"} ${r2(pin.x)} ${r2(pin.y)}`,
+        `Q ${r2(v.x)} ${r2(v.y)} ${r2(pout.x)} ${r2(pout.y)}`
+      );
+    }
+    return parts.join(" ") + " Z";
+  }
+
+  // src/core/composer.ts
+  var DEFAULT_PARAMS = {
+    width: 800,
+    height: 600,
+    density: 140,
+    relax: 2,
+    pattern: "scatter",
+    gap: 4,
+    rounding: 0,
+    ringSpacing: 0,
+    ringShading: "fade",
+    strokeWidth: 2,
+    style: "color",
+    themeId: "terrazzo",
+    colorStrategy: "balanced",
+    gradientAngle: 35,
+    seed: 12345
+  };
+  function clampParams(p) {
+    const num = (v, d) => typeof v === "number" && isFinite(v) ? v : d;
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    const D = DEFAULT_PARAMS;
+    const ringSpacing = num(p.ringSpacing, D.ringSpacing);
+    return {
+      width: clamp(Math.round(num(p.width, D.width)), 100, 4e3),
+      height: clamp(Math.round(num(p.height, D.height)), 100, 4e3),
+      density: clamp(Math.round(num(p.density, D.density)), 4, 1200),
+      relax: clamp(Math.round(num(p.relax, D.relax)), 0, 10),
+      pattern: PATTERNS.some((x) => x.id === p.pattern) ? p.pattern : D.pattern,
+      gap: clamp(num(p.gap, D.gap), 0, 40),
+      rounding: clamp(num(p.rounding, D.rounding), 0, 60),
+      // Below 2px rings would be a solid smear of strokes; treat that as off.
+      ringSpacing: ringSpacing < 2 ? 0 : clamp(ringSpacing, 2, 200),
+      ringShading: p.ringShading === "alternate" ? "alternate" : "fade",
+      strokeWidth: clamp(num(p.strokeWidth, D.strokeWidth), 0, 12),
+      style: p.style === "gradient" || p.style === "bw" ? p.style : "color",
+      themeId: PALETTES.some((x) => x.id === p.themeId) ? p.themeId : D.themeId,
+      colorStrategy: p.colorStrategy === "random" || p.colorStrategy === "bySize" ? p.colorStrategy : "balanced",
+      gradientAngle: clamp(num(p.gradientAngle, D.gradientAngle), 0, 360),
+      seed: Math.round(num(p.seed, D.seed))
+    };
+  }
+  function compose(raw) {
+    const params = clampParams(raw);
+    const rngGeo = mulberry32(params.seed);
+    const rngColor = mulberry32((params.seed ^ 2654435769) >>> 0);
+    let sites = generateSites(rngGeo, params.density, params.width, params.height, params.pattern);
+    for (let k = 0; k < params.relax; k++) sites = relaxSites(sites, params.width, params.height);
+    const cells = computeCells(sites, params.width, params.height, params.gap);
+    const palette = getPalette(params.themeId);
+    const fills = assignFills(
+      cells,
+      params.style,
+      params.colorStrategy,
+      palette,
+      params.gradientAngle,
+      rngColor
+    );
+    const rings = cells.map((c) => cellRings(c.poly, params.ringSpacing));
+    return { params, palette, cells, fills, rings };
+  }
+
+  // src/core/svg.ts
+  function cellShapes(t) {
+    const shapes = [];
+    let cellNo = 0;
+    t.cells.forEach((c, i) => {
+      if (c.poly.length < 3) return;
+      const d = polyPath(c.poly, t.params.rounding);
+      if (!d) return;
+      const id = `cell-${String(++cellNo).padStart(3, "0")}`;
+      shapes.push({ id, d, fill: t.fills[i], index: i, ring: 0 });
+      const rings = t.rings[i];
+      for (let k = 1; k <= rings.length; k++) {
+        const rd = polyPath(rings[k - 1], t.params.rounding);
+        if (!rd) break;
+        const fill = ringFill(t.fills[i], k, rings.length, t.params.ringShading);
+        shapes.push({ id: `${id}-ring-${k}`, d: rd, fill, index: i, ring: k });
+      }
+    });
+    return shapes;
+  }
+  function toSVG(t, shapes = cellShapes(t)) {
+    const { params, palette } = t;
+    const bw = params.style === "bw";
+    const bg = bw ? "#ffffff" : palette.bg;
+    const stroke = bw ? "#111111" : palette.ink;
+    const strokeW = bw ? Math.max(0.75, params.strokeWidth) : params.strokeWidth;
+    const paths = shapes.map((s) => {
+      const attrs = [`id="${s.id}"`, `d="${s.d}"`, `fill="${s.fill}"`];
+      if (strokeW > 0) {
+        attrs.push(`stroke="${stroke}"`, `stroke-width="${strokeW}"`, 'stroke-linejoin="round"');
+      }
+      return `  <path ${attrs.join(" ")}/>`;
+    });
+    return [
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${params.width}" height="${params.height}" viewBox="0 0 ${params.width} ${params.height}">`,
+      `  <rect id="background" width="${params.width}" height="${params.height}" fill="${bg}"/>`,
+      ...paths,
+      "</svg>"
+    ].join("\n");
+  }
+
+  // src/core/index.ts
+  function generate(params) {
+    const tessellation = compose(params);
+    const shapes = cellShapes(tessellation);
+    const cellCount = shapes.filter((s) => s.ring === 0).length;
+    return {
+      svg: toSVG(tessellation, shapes),
+      cellCount,
+      ringCount: shapes.length - cellCount,
+      tessellation
+    };
+  }
+
+  // src/ui/ui.ts
+  var state = __spreadValues({}, DEFAULT_PARAMS);
+  var currentSvg = "";
+  var targetId = null;
+  var targetName = "";
+  var $ = (id) => document.getElementById(id);
+  var randSeed = () => Math.floor(Math.random() * 1e9);
+  var renderQueued = false;
+  function scheduleRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+      if (renderQueued) render();
+    });
+  }
+  function render() {
+    renderQueued = false;
+    const t0 = performance.now();
+    const res = generate(state);
+    currentSvg = res.svg;
+    const box = $("preview");
+    box.style.aspectRatio = `${state.width} / ${state.height}`;
+    box.innerHTML = res.svg.replace(
+      /width="[\d.]+" height="[\d.]+"/,
+      'width="100%" height="100%"'
+    );
+    const target = targetId ? ` \xB7 updating \u201C${targetName}\u201D` : "";
+    const rings = res.ringCount ? ` + ${res.ringCount} rings` : "";
+    $("meta").textContent = `${res.cellCount} cells${rings} \xB7 seed ${state.seed} \xB7 ${(performance.now() - t0).toFixed(0)}ms${target}`;
+    $("insert").textContent = targetId ? "Update selected" : "Insert into Figma";
+    $("insertNew").classList.toggle("hide", !targetId);
+    $("themeRow").classList.toggle("hide", state.style === "bw");
+    $("strategyRow").classList.toggle("hide", state.style !== "color");
+    $("angleRow").classList.toggle("hide", state.style !== "gradient");
+    $("ringShadingRow").classList.toggle("hide", state.style === "bw" || !state.ringSpacing);
+  }
+  function showValue(id, value) {
+    const val = document.getElementById(`${id}Val`);
+    if (val) val.textContent = id === "ringSpacing" && Number(value) === 0 ? "Off" : value;
+  }
+  function setSeg(id, value) {
+    $(id).querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === value));
+  }
+  function hydrate(params) {
+    Object.assign(state, DEFAULT_PARAMS, params);
+    applyState();
+  }
+  function applyState() {
+    const numeric = [
+      "density",
+      "relax",
+      "gap",
+      "rounding",
+      "ringSpacing",
+      "strokeWidth",
+      "gradientAngle",
+      "width",
+      "height",
+      "seed"
+    ];
+    for (const id of numeric) {
+      const el = $(id);
+      el.value = String(state[id]);
+      showValue(id, el.value);
+    }
+    $("pattern").value = state.pattern;
+    $("colorStrategy").value = state.colorStrategy;
+    setSeg("style", state.style);
+    setSeg("ringShading", state.ringShading);
+    $("themes").querySelectorAll(".swatch").forEach((s) => s.classList.toggle("on", s.dataset.id === state.themeId));
+  }
+  window.onmessage = (e) => {
+    var _a, _b, _c;
+    const msg = (_a = e.data) == null ? void 0 : _a.pluginMessage;
+    if (!msg) return;
+    if (msg.type === "hydrate" && msg.params) {
+      hydrate(msg.params);
+      render();
+    } else if (msg.type === "target") {
+      const changed = msg.nodeId !== targetId;
+      targetId = (_b = msg.nodeId) != null ? _b : null;
+      targetName = (_c = msg.name) != null ? _c : "";
+      if (targetId && changed && msg.params) hydrate(msg.params);
+      render();
+    }
+  };
+  var themes = $("themes");
+  for (const p of PALETTES) {
+    const sw = document.createElement("div");
+    sw.className = "swatch" + (p.id === state.themeId ? " on" : "");
+    sw.title = p.name;
+    sw.dataset.id = p.id;
+    for (const c of p.colors.slice(0, 4)) {
+      const bar = document.createElement("i");
+      bar.style.background = c;
+      sw.appendChild(bar);
+    }
+    sw.addEventListener("click", () => {
+      themes.querySelectorAll(".swatch").forEach((s) => s.classList.remove("on"));
+      sw.classList.add("on");
+      state.themeId = p.id;
+      render();
+    });
+    themes.appendChild(sw);
+  }
+  function bindSlider(id) {
+    const el = $(id);
+    el.addEventListener("input", () => {
+      state[id] = Number(el.value);
+      showValue(id, el.value);
+      scheduleRender();
+    });
+  }
+  function bindDimension(id) {
+    const el = $(id);
+    el.addEventListener("change", () => {
+      const v = Math.min(4e3, Math.max(100, Math.round(Number(el.value) || state[id])));
+      el.value = String(v);
+      state[id] = v;
+      render();
+    });
+  }
+  function bindSelect(id) {
+    const el = $(id);
+    el.addEventListener("change", () => {
+      state[id] = el.value;
+      render();
+    });
+  }
+  bindSlider("density");
+  bindSlider("relax");
+  bindSlider("gap");
+  bindSlider("rounding");
+  bindSlider("ringSpacing");
+  bindSlider("strokeWidth");
+  bindSlider("gradientAngle");
+  bindDimension("width");
+  bindDimension("height");
+  bindSelect("pattern");
+  bindSelect("colorStrategy");
+  function bindSeg(id) {
+    $(id).querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        var _a;
+        setSeg(id, (_a = btn.dataset.v) != null ? _a : "");
+        state[id] = btn.dataset.v;
+        render();
+      });
+    });
+  }
+  bindSeg("style");
+  bindSeg("ringShading");
+  $("seed").addEventListener("input", () => {
+    state.seed = Number($("seed").value) || 0;
+    scheduleRender();
+  });
+  $("shuffle").addEventListener("click", () => {
+    state.seed = randSeed();
+    $("seed").value = String(state.seed);
+    render();
+  });
+  function send(type) {
+    if (renderQueued) render();
+    parent.postMessage(
+      {
+        pluginMessage: {
+          type,
+          nodeId: targetId,
+          svg: currentSvg,
+          seed: state.seed,
+          style: state.style,
+          params: __spreadValues({}, state)
+        }
+      },
+      "*"
+    );
+  }
+  $("insert").addEventListener("click", () => send(targetId ? "update" : "insert"));
+  $("insertNew").addEventListener("click", () => send("insert"));
+  render();
+})();
+</script>
+</body>
+</html>

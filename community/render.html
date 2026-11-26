@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Voronoi Maker: Community assets</title>
+<style>
+  :root {
+    --page: #faf7f2;
+    --ink: #1f1d1a;
+    --muted: #6b645a;
+    --card: #fffdf9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { overflow: hidden; background: var(--page); }
+  body { font-family: Inter, -apple-system, 'Helvetica Neue', sans-serif; color: var(--ink); }
+  #stage { position: relative; overflow: hidden; }
+  #stage > svg { display: block; }
+
+  /* thumbnail */
+  .card {
+    position: absolute; left: 96px; top: 50%; transform: translateY(-50%);
+    background: var(--card); border-radius: 36px; padding: 60px 68px 64px;
+    box-shadow: 0 40px 90px rgba(40, 30, 20, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    max-width: 780px;
+  }
+  .kicker { font-size: 24px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #b4553a; margin-bottom: 18px; }
+  .card h1 { font-size: 112px; line-height: 0.98; font-weight: 800; letter-spacing: -0.04em; }
+  .card p { font-size: 36px; line-height: 1.3; font-weight: 500; color: var(--muted); margin-top: 22px; }
+  .chips { display: flex; gap: 12px; margin-top: 34px; }
+  .chips span { font-size: 22px; font-weight: 600; padding: 10px 20px; border-radius: 999px; background: #efe8dc; color: #4a443c; }
+
+  /* carousel slides */
+  .slide { position: absolute; inset: 0; padding: 88px 120px 0; }
+  .slide h2 { font-size: 68px; line-height: 1.04; font-weight: 800; letter-spacing: -0.035em; }
+  .slide .sub { font-size: 30px; line-height: 1.35; font-weight: 500; color: var(--muted); margin-top: 16px; max-width: 1400px; }
+  .row { display: flex; justify-content: space-between; margin-top: 56px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 520px); justify-content: space-between; row-gap: 34px; margin-top: 48px; }
+  figure { display: flex; flex-direction: column; gap: 16px; }
+  .art { border-radius: 22px; overflow: hidden; box-shadow: 0 18px 44px rgba(40, 30, 20, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.05); }
+  .art svg { display: block; }
+  figcaption { font-size: 26px; line-height: 1.25; }
+  figcaption b { font-weight: 700; margin-right: 10px; }
+  figcaption span { color: var(--muted); font-weight: 500; }
+
+  /* panel slide */
+  .copy { position: absolute; left: 120px; top: 150px; width: 600px; }
+  .copy h2 { font-size: 72px; line-height: 1.02; font-weight: 800; letter-spacing: -0.035em; }
+  .copy ul { list-style: none; padding: 0; margin-top: 44px; display: flex; flex-direction: column; gap: 28px; }
+  .copy li { font-size: 29px; line-height: 1.35; font-weight: 500; color: var(--muted); padding-left: 40px; position: relative; }
+  .copy li b { color: var(--ink); font-weight: 700; }
+  .copy li::before { content: ''; position: absolute; left: 0; top: 11px; width: 18px; height: 18px; border-radius: 6px; background: #d96f4e; }
+  .canvas { position: absolute; left: 790px; top: 0; right: 0; bottom: 0; background: #ecebe8; }
+  .frame { position: absolute; left: 1010px; top: 230px; width: 840px; height: 630px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); }
+  .frame svg { width: 100%; height: 100%; display: block; }
+  .window {
+    position: absolute; left: 830px; top: 108px; width: 432px; border-radius: 14px; overflow: hidden; background: #fff;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  }
+  .window .bar { height: 48px; display: flex; align-items: center; padding: 0 18px; font-size: 16px; font-weight: 600; border-bottom: 1px solid #e6e6e6; }
+  .window .body { width: 432px; height: 864px; overflow: hidden; }
+  .window iframe { width: 360px; height: 720px; border: 0; transform: scale(1.2); transform-origin: 0 0; display: block; }
+
+  /* icon: authored at 128, displayed large, downscaled after capture */
+  .icon svg { width: 1024px; height: 1024px; display: block; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<script src="../dist/core.iife.js"></script>
+<script>
+  const { generate, DEFAULT_PARAMS, PALETTES } = VoronoiCore;
+  const asset = new URLSearchParams(location.search).get('asset') || 'thumbnail';
+  const stage = document.getElementById('stage');
+  const sizes = { icon: [1024, 1024] };
+  const [W, H] = sizes[asset] || [1920, 1080];
+  stage.style.width = W + 'px';
+  stage.style.height = H + 'px';
+
+  const svgOf = (p) => generate({ ...DEFAULT_PARAMS, ...p }).svg;
+  const tile = (p, label, caption) =>
+    `<figure><div class="art">${svgOf(p)}</div>` +
+    `<figcaption><b>${label}</b><span>${caption}</span></figcaption></figure>`;
+
+  /** One layout rendered in all three styles, each cell taking the style of the
+   *  band its center falls in (organic, slightly diagonal band edges). */
+  function mixedStyles(base) {
+    const parse = (style) =>
+      [...new DOMParser().parseFromString(svgOf({ ...base, style }), 'image/svg+xml').querySelectorAll('path')];
+    const bw = parse('bw');
+    const gr = parse('gradient');
+    const co = parse('color');
+    const ser = new XMLSerializer();
+    let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${base.width}" height="${base.height}" viewBox="0 0 ${base.width} ${base.height}">` +
+      `<rect width="${base.width}" height="${base.height}" fill="#f5efe4"/>`;
+    bw.forEach((p, i) => {
+      const n = p.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);
+      let sx = 0, sy = 0, k = 0;
+      for (let j = 0; j + 1 < n.length; j += 2) { sx += n[j]; sy += n[j + 1]; k++; }
+      const cx = sx / k, cy = sy / k;
+      const jitter = (Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1) * 0.05;
+      const t = (cx + 0.22 * (cy - base.height / 2)) / base.width + jitter;
+      out += ser.serializeToString(t < 0.47 ? p : t < 0.72 ? gr[i] ?? p : co[i] ?? p);
+    });
+    return out + '</svg>';
+  }
+
+  if (asset === 'thumbnail') {
+    stage.innerHTML =
+      mixedStyles({
+        width: W, height: H, density: 105, relax: 3, pattern: 'scatter', gap: 8, rounding: 12,
+        strokeWidth: 2.5, themeId: 'terrazzo', gradientAngle: 90, seed: 424242,
+      }) +
+      `<div class="card">
+         <div class="kicker">Figma plugin</div>
+         <h1>Voronoi Maker</h1>
+         <p>Editable vector Voronoi patterns for any frame.</p>
+         <div class="chips"><span>Outline</span><span>Gradient</span><span>Colored</span></div>
+       </div>`;
+  } else if (asset === 'styles') {
+    const base = { width: 520, height: 640, density: 64, relax: 3, gap: 6, rounding: 8, strokeWidth: 2, themeId: 'terrazzo', gradientAngle: 60, seed: 7781 };
+    stage.innerHTML = `<div class="slide">
+      <h2>Three styles, same layout</h2>
+      <div class="sub">Switch styles anytime without losing your cell layout.</div>
+      <div class="row">
+        ${tile({ ...base, style: 'bw' }, 'Outline', 'coloring-book lines')}
+        ${tile({ ...base, style: 'gradient' }, 'Gradient', 'angled color sweep')}
+        ${tile({ ...base, style: 'color' }, 'Colored', '6 built-in themes')}
+      </div></div>`;
+  } else if (asset === 'patterns') {
+    const base = { width: 384, height: 640, density: 90, gap: 4, rounding: 6, strokeWidth: 1.5, style: 'color' };
+    stage.innerHTML = `<div class="slide">
+      <h2>Four starting patterns</h2>
+      <div class="sub">Choose how points are placed, then adjust Uniformity from loose scatter to honeycomb.</div>
+      <div class="row">
+        ${tile({ ...base, pattern: 'scatter', relax: 1, themeId: 'terrazzo', seed: 311 }, 'Scatter', 'irregular')}
+        ${tile({ ...base, pattern: 'clusters', relax: 1, themeId: 'lagoon', colorStrategy: 'bySize', density: 130, seed: 902 }, 'Clusters', 'tight clusters')}
+        ${tile({ ...base, pattern: 'grid', relax: 2, themeId: 'citrus', seed: 58 }, 'Grid', 'near-hexagons')}
+        ${tile({ ...base, pattern: 'orbits', relax: 0, themeId: 'ultraviolet', density: 170, seed: 4410 }, 'Orbits', 'radial rings')}
+      </div></div>`;
+  } else if (asset === 'themes') {
+    const base = { width: 520, height: 300, density: 56, relax: 3, gap: 5, rounding: 8, strokeWidth: 1.5, style: 'color', seed: 2718 };
+    stage.innerHTML = `<div class="slide">
+      <h2>Six color themes</h2>
+      <div class="sub">Use Balanced coloring to keep neighbors distinct, or color randomly or by cell size.</div>
+      <div class="grid3">
+        ${PALETTES.map((p) => tile({ ...base, themeId: p.id }, p.name, '')).join('')}
+      </div></div>`;
+  } else if (asset === 'panel') {
+    const out = svgOf({}).replace(/width="[\d.]+" height="[\d.]+"/, '');
+    stage.innerHTML = `<div class="canvas"></div>
+      <div class="copy">
+        <h2>Every cell is its own vector</h2>
+        <ul>
+          <li><b>Click any cell</b> to recolor or move it on its own.</li>
+          <li><b>Edit Voronoi pattern</b> in the properties panel reopens a frame with its saved settings.</li>
+          <li><b>Update in place</b> to tweak settings without losing cells you recolored manually.</li>
+          <li><b>Offline only.</b> No network access, nothing leaves your file.</li>
+        </ul>
+      </div>
+      <div class="frame">${out}</div>
+      <div class="window"><div class="bar">Voronoi Maker</div><div class="body"><iframe src="../dist/ui.html"></iframe></div></div>`;
+  } else if (asset === 'icon') {
+    const svg = svgOf({
+      width: 128, height: 128, density: 8, relax: 8, gap: 7, rounding: 11, strokeWidth: 0,
+      style: 'color', themeId: 'terrazzo', seed: 23,
+    }).replace(/(<rect id="background"[^>]*fill=")[^"]+/, '$1#2b2824');
+    stage.innerHTML = `<div class="icon">${svg.replace(/width="128" height="128"/, '')}</div>`;
+  }
+</script>
+</body>
+</html>

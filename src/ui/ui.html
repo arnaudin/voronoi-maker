@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: var(--figma-color-bg, #ffffff);
+    --fg: var(--figma-color-text, #1e1e1e);
+    --muted: var(--figma-color-text-secondary, #777);
+    --border: var(--figma-color-border, #e0e0e0);
+    --accent: var(--figma-color-bg-brand, #0d99ff);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font: 11px/1.4 Inter, 'Helvetica Neue', sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    padding: 12px 12px 0;
+    user-select: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #preview {
+    width: 100%;
+    max-height: 300px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    margin: 0 auto 10px;
+  }
+  #preview svg { width: 100%; height: 100%; display: block; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .row label { flex: 0 0 78px; color: var(--muted); }
+  .row input[type='range'] { flex: 1; }
+  .row select, .row input[type='number'] {
+    flex: 1; padding: 3px 6px; border: 1px solid var(--border);
+    border-radius: 4px; background: var(--bg); color: var(--fg); font: inherit;
+    min-width: 0;
+  }
+  .val { flex: 0 0 28px; text-align: right; color: var(--muted); }
+  .seg { display: flex; flex: 1; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .seg button {
+    flex: 1; padding: 4px 0; border: 0; background: transparent;
+    color: var(--fg); font: inherit; cursor: pointer;
+  }
+  .seg button.on { background: var(--accent); color: #fff; }
+  #themes { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+  .swatch {
+    width: 34px; height: 22px; border-radius: 4px; cursor: pointer;
+    border: 2px solid transparent; display: flex; overflow: hidden;
+  }
+  .swatch.on { border-color: var(--accent); }
+  .swatch i { flex: 1; }
+  #footer {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 10px 0 12px;
+  }
+  .actions { display: flex; gap: 8px; }
+  .actions button {
+    flex: 1; padding: 8px 0; border-radius: 6px; font: inherit; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+  }
+  .actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #meta { color: var(--muted); margin-top: 6px; text-align: center; }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+  <div id="preview"></div>
+
+  <div class="row"><label>Style</label>
+    <div class="seg" id="style">
+      <button data-v="color" class="on">Colored</button>
+      <button data-v="gradient">Gradient</button>
+      <button data-v="bw">Outline</button>
+    </div>
+  </div>
+  <div class="row" id="themeRow"><label>Theme</label><div id="themes"></div></div>
+  <div class="row" id="strategyRow"><label>Coloring</label>
+    <select id="colorStrategy">
+      <option value="balanced">Balanced (avoids matching neighbors)</option>
+      <option value="random">Random</option>
+      <option value="bySize">By cell size</option>
+    </select>
+  </div>
+  <div class="row hide" id="angleRow"><label>Angle</label><input id="gradientAngle" type="range" min="0" max="360" step="5" value="35" /><span class="val" id="gradientAngleVal">35</span></div>
+  <div class="row"><label>Density</label><input id="density" type="range" min="12" max="800" step="1" value="140" /><span class="val" id="densityVal">140</span></div>
+  <div class="row"><label>Uniformity</label><input id="relax" type="range" min="0" max="10" step="1" value="2" /><span class="val" id="relaxVal">2</span></div>
+  <div class="row"><label>Pattern</label>
+    <select id="pattern">
+      <option value="scatter">Scatter</option>
+      <option value="clusters">Clusters</option>
+      <option value="grid">Grid</option>
+      <option value="orbits">Orbits</option>
+    </select>
+  </div>
+  <div class="row"><label>Gap</label><input id="gap" type="range" min="0" max="24" step="0.5" value="4" /><span class="val" id="gapVal">4</span></div>
+  <div class="row"><label>Rounding</label><input id="rounding" type="range" min="0" max="40" step="1" value="0" /><span class="val" id="roundingVal">0</span></div>
+  <div class="row"><label title="Nested outlines inside every cell, this many px apart">Rings</label><input id="ringSpacing" type="range" min="0" max="60" step="1" value="0" /><span class="val" id="ringSpacingVal">Off</span></div>
+  <div class="row hide" id="ringShadingRow"><label>Ring shading</label>
+    <div class="seg" id="ringShading">
+      <button data-v="fade" class="on">Fade to light</button>
+      <button data-v="alternate">Alternate</button>
+    </div>
+  </div>
+  <div class="row"><label>Stroke</label><input id="strokeWidth" type="range" min="0" max="8" step="0.5" value="2" /><span class="val" id="strokeWidthVal">2</span></div>
+  <div class="row"><label>Size (px)</label>
+    <input id="width" type="number" min="100" max="4000" step="50" value="800" />
+    <span style="color: var(--muted)">×</span>
+    <input id="height" type="number" min="100" max="4000" step="50" value="600" />
+  </div>
+  <div class="row"><label>Seed</label><input id="seed" type="number" value="12345" /></div>
+
+  <div id="footer">
+    <div class="actions">
+      <button id="shuffle">🎲 Shuffle</button>
+      <button id="insertNew" class="hide" title="Add a new pattern instead of updating the selected one">Insert new</button>
+      <button id="insert" class="primary">Insert into Figma</button>
+    </div>
+    <div id="meta"></div>
+  </div>
+
+<script>__UI_JS__</script>
+</body>
+</html>

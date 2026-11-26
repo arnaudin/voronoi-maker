@@ -1,0 +1,11 @@
+{
+  "name": "Voronoi Maker",
+  "id": "849301276554182930",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": { "allowedDomains": ["none"] },
+  "relaunchButtons": [{ "command": "edit", "name": "Edit Voronoi pattern" }]
+}
