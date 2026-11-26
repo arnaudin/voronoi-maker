@@ -1,20 +1,35 @@
 # Voronoi Maker
 
-A Figma plugin that fills a frame with a Voronoi pattern as clean vector art. Every cell
-is a **closed path** that becomes its own selectable vector in Figma, so you can click
-any cell and recolor it after generation.
+![Voronoi Maker: editable vector Voronoi patterns for any frame](community/thumbnail.png)
 
-## Setup
+**Generate editable vector Voronoi patterns in Figma.**
 
-```sh
-npm install
-npm run build     # writes dist/code.js, dist/ui.html, dist/core.iife.js
-```
+[![Figma Community](https://img.shields.io/badge/Figma_Community-Install-0D99FF?logo=figma&logoColor=white)](https://www.figma.com/community/plugin/1707624076362663172)
+[![Playground](https://img.shields.io/badge/Figma-Playground_file-A259FF?logo=figma&logoColor=white)](https://www.figma.com/design/skSB3nQ1PQLBnSYQrFB37O)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-`dist/` is committed, so a fresh clone works in Figma without a build step.
+Voronoi Maker fills a frame with a Voronoi pattern as clean vector art. Every cell is a
+**closed path** that becomes its own selectable vector in Figma, so you can click any
+cell and recolor it after generation.
 
-In **Figma desktop**: Plugins > Development > **Import plugin from manifest…**, then pick
-`manifest.json` in this folder. Run it from Plugins > Development > Voronoi Maker.
+- **Three styles:** Colored, Gradient, or black Outline on white.
+- **Four patterns:** scatter, clusters, grid and orbits, plus 6 curated themes.
+- **Gaps, rounding and rings:** exact gutters, pebble corners and nested outlines.
+- **Update in place:** change the settings later and keep the colors you picked.
+- **Reproducible:** the same seed and settings always give the same pattern.
+
+| | |
+|---|---|
+| ![Colored, Gradient and Outline styles](community/carousel-1-styles.png) | ![Four point patterns](community/carousel-2-patterns.png) |
+| ![Six themes](community/carousel-3-themes.png) | ![Recolor any cell by hand](community/carousel-4-editing.png) |
+
+## Install
+
+- **From the Figma Community:** [Voronoi Maker](https://www.figma.com/community/plugin/1707624076362663172)
+  (in review with Figma; the link works once the listing is approved). Open it in any
+  design file and run it from the Plugins menu.
+- **Try it first:** duplicate the [Voronoi Maker playground](https://www.figma.com/design/skSB3nQ1PQLBnSYQrFB37O).
+- **From source:** see [Development](#development).
 
 ## Using the plugin
 
@@ -80,27 +95,25 @@ Every generated frame stores its full settings with `setPluginData` and gets
 Figma's properties panel. Clicking it reopens the plugin with that frame's settings
 loaded and the button set to *Update selected*.
 
-## Manifest id
+> **Plugin id**: `1707624076362663172`, issued by Figma. **Never change it.** Plugin data and
+> relaunch buttons are tied to the id, so frames made with another id lose their stored
+> settings and their **Edit Voronoi pattern** button.
 
-Figma ties a plugin's stored data and relaunch buttons to the `id` in `manifest.json`.
-The id here was made for local development. Figma issues the permanent id when the
-plugin is published; put that value in `manifest.json` once and never change it again,
-or existing frames lose their **Edit Voronoi pattern** button.
+## Development
 
-## License and privacy
+### Build and import
 
-MIT, see [LICENSE](LICENSE). Everything in `dist/` is built from this repo's `src/`. No
-third-party code is bundled; the only dependencies are build tools (esbuild, TypeScript,
-Figma's type definitions) that never ship. The seeded random number generator is
-Tommy Ettinger's public-domain mulberry32. The listing images in `community/` set their
-text in Inter (SIL Open Font License); the font itself is not included.
+```sh
+npm install
+npm run build     # writes dist/code.js, dist/ui.html, dist/core.iife.js
+```
 
-The plugin declares no network access and collects nothing: no analytics, no accounts,
-no third-party services. It reads only the current selection (to recognize frames it
-made) and writes only the frames it creates. Each frame carries its own settings as
-plugin data so it can be reopened, and that data stays in the Figma file.
+`dist/` is committed, so a fresh clone works in Figma without a build step.
 
-## Dev gallery (no Figma needed)
+In **Figma desktop**: Plugins > Development > **Import plugin from manifest…**, then pick
+`manifest.json` in this folder. Run it from Plugins > Development > Voronoi Maker.
+
+### Dev gallery (no Figma needed)
 
 ```sh
 python3 -m http.server 8144   # from this folder
@@ -114,7 +127,7 @@ every cell to itself, renumbered cells keep their changes, a 2x resize follows e
 cell, merged cells never get two changes) and checks rings (every band is one spacing
 wide, shading behaves, recolored rings follow their cells).
 
-## Architecture
+### Architecture
 
 One pure geometry core (`src/core/`) produces an SVG string. The plugin UI shows that
 SVG as the live preview, and `main.ts` inserts the *same* string with
@@ -131,3 +144,16 @@ SVG as the live preview, and `main.ts` inserts the *same* string with
 - `svg.ts`: tessellation to SVG, plus the layer-name-to-fill map used to spot fills
   changed by hand.
 - `match.ts`: where each recolored layer belongs after an update.
+
+## License and privacy
+
+MIT, see [LICENSE](LICENSE). Everything in `dist/` is built from this repo's `src/`. No
+third-party code is bundled; the only dependencies are build tools (esbuild, TypeScript,
+Figma's type definitions) that never ship. The seeded random number generator is
+Tommy Ettinger's public-domain mulberry32. The listing images in `community/` set their
+text in Inter (SIL Open Font License); the font itself is not included.
+
+The plugin declares no network access and collects nothing: no analytics, no accounts,
+no third-party services. It reads only the current selection (to recognize frames it
+made) and writes only the frames it creates. Each frame carries its own settings as
+plugin data so it can be reopened, and that data stays in the Figma file.
